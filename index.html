@@ -1,0 +1,1307 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>浙里畅飞 · 低空管理</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+    <style>
+        /* ===== 全局样式 ===== */
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; }
+        body { background: #f2f6fc; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 12px; }
+        .phone-frame { width: 390px; max-width: 100%; height: 780px; background: #ffffff; border-radius: 40px; box-shadow: 0 20px 60px rgba(0, 20, 50, 0.15); overflow: hidden; display: flex; flex-direction: column; position: relative; }
+        .status-bar { padding: 12px 24px 6px; display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; color: #1e293b; background: #ffffff; flex-shrink: 0; }
+        .app-content { flex: 1; overflow-y: auto; padding: 0 16px 80px; scroll-behavior: smooth; }
+        .app-content::-webkit-scrollbar { width: 0; }
+        .top-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 0 12px; border-bottom: 1px solid #eef2f6; margin-bottom: 12px; }
+        .top-header .title { font-size: 20px; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 6px; }
+        .top-header .title i { color: #1a5cff; }
+        .top-header .ai-icon { font-size: 24px; color: #1a5cff; cursor: pointer; background: none; border: none; padding: 4px; }
+        .top-header .ai-icon:active { opacity: 0.6; }
+        .search-box { background: #f1f5f9; border-radius: 12px; padding: 10px 16px; display: flex; align-items: center; gap: 10px; margin-bottom: 16px; border: 1px solid #e2e8f0; }
+        .search-box i { color: #94a3b8; font-size: 16px; }
+        .search-box input { border: none; background: transparent; flex: 1; font-size: 15px; outline: none; color: #0f172a; }
+        .search-box input::placeholder { color: #94a3b8; }
+        .panel { display: none; animation: fadeUp 0.25s ease; }
+        .panel.active { display: block; }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .card { background: #fff; border-radius: 16px; padding: 16px; margin-bottom: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border: 1px solid #f1f5f9; }
+        .card-title { font-weight: 600; font-size: 15px; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; color: #0f172a; }
+        .card-title i { color: #1a5cff; }
+        .map-placeholder { background: #e2e8f0; border-radius: 12px; height: 200px; position: relative; overflow: hidden; border: 2px solid #cbd5e1; margin-bottom: 8px; }
+        .map-placeholder .map-bg { width: 100%; height: 100%; background: #d9e2ef; position: relative; background-image: linear-gradient(rgba(200,212,230,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(200,212,230,0.3) 1px, transparent 1px); background-size: 20px 20px; }
+        .airspace-poly { position: absolute; border: 2px dashed #1a5cff; border-radius: 12px; background: rgba(26,92,255,0.08); top: 20%; left: 10%; width: 70%; height: 60%; transform: rotate(-2deg); }
+        .airspace-poly::after { content: '适飞空域'; position: absolute; top: -10px; left: 12px; background: #1a5cff; color: #fff; font-size: 10px; padding: 0 8px; border-radius: 10px; font-weight: 500; }
+        .route-line { position: absolute; top: 30%; left: 15%; width: 60%; height: 4px; background: #f59e0b; transform: rotate(15deg); border-radius: 4px; box-shadow: 0 0 8px rgba(245,158,11,0.3); }
+        .route-line::before { content: '热门航线'; position: absolute; right: -48px; top: -12px; background: #f59e0b; color: #fff; font-size: 9px; padding: 1px 8px; border-radius: 10px; white-space: nowrap; }
+        .route-line::after { content: '→'; position: absolute; right: -20px; top: -8px; font-size: 18px; color: #f59e0b; font-weight: 700; }
+        .plane-icon { position: absolute; font-size: 18px; color: #1a5cff; top: 35%; left: 50%; transform: translate(-50%, -50%) rotate(45deg); }
+        .map-label { position: absolute; bottom: 12px; left: 16px; background: rgba(255,255,255,0.85); padding: 4px 12px; border-radius: 6px; font-size: 11px; color: #475569; display: flex; align-items: center; gap: 8px; }
+        .map-label .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 2px; }
+        .map-label .dot.blue { background: #1a5cff; }
+        .map-label .dot.orange { background: #f59e0b; }
+        .legend-row { display: flex; align-items: center; gap: 16px; padding: 8px 4px 12px; border-bottom: 1px solid #eef2f6; margin-bottom: 12px; flex-wrap: wrap; }
+        .legend-item { display: flex; align-items: center; gap: 4px; font-size: 12px; color: #475569; }
+        .legend-item .dot { width: 10px; height: 10px; border-radius: 50%; }
+        .legend-item .dot.blue { background: #1a5cff; }
+        .legend-item .dot.orange { background: #f59e0b; }
+        .legend-item .ai-click { cursor: pointer; color: #1a5cff; font-weight: 500; display: flex; align-items: center; gap: 4px; }
+        .legend-item .ai-click:active { opacity: 0.6; }
+        .hot-routes-title { font-weight: 600; font-size: 15px; margin: 4px 0 10px; display: flex; align-items: center; gap: 8px; color: #0f172a; }
+        .hot-routes-title i { color: #f59e0b; }
+        .route-card-mini { background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; display: flex; flex-direction: column; gap: 4px; }
+        .route-card-mini .header { display: flex; justify-content: space-between; align-items: center; }
+        .route-card-mini .name { font-weight: 600; font-size: 15px; color: #0f172a; }
+        .route-card-mini .status-tag { font-size: 11px; padding: 2px 10px; border-radius: 12px; font-weight: 500; }
+        .route-card-mini .status-tag.green { background: #d1fae5; color: #065f46; }
+        .route-card-mini .status-tag.yellow { background: #fef3c7; color: #92400e; }
+        .route-card-mini .status-tag.red { background: #fee2e2; color: #991b1b; }
+        .route-card-mini .desc { font-size: 13px; color: #475569; line-height: 1.4; }
+        .route-card-mini .meta { display: flex; align-items: center; gap: 12px; font-size: 12px; color: #94a3b8; }
+        .route-card-mini .meta i { margin-right: 2px; }
+        .route-card-mini .actions { margin-top: 6px; display: flex; justify-content: flex-end; }
+        .btn-book-mini { background: #1a5cff; color: #fff; border: none; border-radius: 8px; padding: 6px 16px; font-size: 13px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 4px; transition: background 0.15s; }
+        .btn-book-mini:active { background: #0d3fb8; }
+        /* ===== AI 抽屉 ===== */
+        .ai-drawer { 
+            position: absolute; 
+            bottom: 60px; 
+            left: 0; 
+            right: 0; 
+            height: 0; 
+            background: #ffffff; 
+            border-radius: 24px 24px 0 0; 
+            box-shadow: 0 -8px 40px rgba(0,0,0,0.12); 
+            transition: height 0.35s cubic-bezier(0.32,0.72,0,1); 
+            overflow: hidden; 
+            z-index: 100; 
+            display: flex; 
+            flex-direction: column; 
+        }
+        .ai-drawer.open { height: 66.6%; }
+        .ai-drawer-header { padding: 16px 20px 8px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eef2f6; flex-shrink: 0; }
+        .ai-drawer-header .title { font-weight: 600; font-size: 16px; display: flex; align-items: center; gap: 8px; }
+        .ai-drawer-header .title i { color: #1a5cff; }
+        .ai-drawer-header .close-btn { background: none; border: none; font-size: 20px; color: #94a3b8; cursor: pointer; }
+        .ai-messages { flex: 1; overflow-y: auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; }
+        .ai-message { max-width: 85%; padding: 10px 14px; border-radius: 16px; font-size: 14px; line-height: 1.5; word-break: break-word; animation: msgIn 0.25s ease; }
+        @keyframes msgIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+        .ai-message.user { align-self: flex-end; background: #1a5cff; color: #fff; border-bottom-right-radius: 4px; }
+        .ai-message.bot { align-self: flex-start; background: #f1f5f9; color: #0f172a; border-bottom-left-radius: 4px; }
+        .ai-suggestions { padding: 8px 16px 0; display: flex; flex-wrap: wrap; gap: 6px; flex-shrink: 0; }
+        .ai-suggestions button { background: #e8edff; border: none; border-radius: 16px; padding: 4px 14px; font-size: 12px; color: #1a5cff; cursor: pointer; white-space: nowrap; }
+        .ai-suggestions button:active { background: #d0dbff; }
+        .ai-input-area { display: flex; align-items: center; gap: 8px; padding: 10px 16px 16px; border-top: 1px solid #eef2f6; flex-shrink: 0; }
+        .ai-input-area input { flex: 1; border: 1.5px solid #e2e8f0; border-radius: 24px; padding: 10px 16px; font-size: 14px; outline: none; background: #f8fafc; }
+        .ai-input-area input:focus { border-color: #1a5cff; }
+        .ai-input-area .send-btn { background: #1a5cff; border: none; border-radius: 50%; width: 44px; height: 44px; color: #fff; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .ai-input-area .send-btn:active { background: #0d3fb8; }
+        .ai-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.2); z-index: 99; display: none; }
+        .ai-overlay.show { display: block; }
+        .airspace-info { background: #f8fafc; border-radius: 10px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; font-size: 14px; border-left: 4px solid #1a5cff; margin-bottom: 10px; }
+        .airspace-info .code { font-weight: 700; color: #0f172a; }
+        .airspace-info .status { color: #1a5cff; font-weight: 500; }
+        .quick-actions { display: flex; gap: 8px; margin-bottom: 10px; }
+        .quick-actions .btn-outline { flex: 1; justify-content: center; display: flex; align-items: center; gap: 6px; background: transparent; border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 10px 0; font-weight: 500; font-size: 14px; color: #475569; cursor: pointer; }
+        .quick-actions .btn-outline i { color: #1a5cff; }
+        .footer-note { text-align: center; font-size: 11px; color: #94a3b8; padding: 8px 0 4px; border-top: 1px solid #eef2f6; margin-top: 8px; }
+        .footer-note i { margin-right: 4px; }
+        .selected-route-card { background: #f8fafc; border: 2px solid #1a5cff; border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
+        .selected-route-card .header { display: flex; justify-content: space-between; align-items: center; }
+        .selected-route-card .name { font-weight: 600; font-size: 15px; color: #0f172a; }
+        .selected-route-card .status-tag { font-size: 11px; padding: 2px 10px; border-radius: 12px; font-weight: 500; }
+        .selected-route-card .status-tag.green { background: #d1fae5; color: #065f46; }
+        .selected-route-card .status-tag.yellow { background: #fef3c7; color: #92400e; }
+        .selected-route-card .status-tag.red { background: #fee2e2; color: #991b1b; }
+        .selected-route-card .desc { font-size: 13px; color: #475569; line-height: 1.4; }
+        .selected-route-card .meta { display: flex; align-items: center; gap: 12px; font-size: 12px; color: #94a3b8; }
+        .selected-route-card .meta i { margin-right: 2px; }
+        .route-select-modal { max-height: 300px; overflow-y: auto; }
+        .route-select-modal .route-option { background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 12px 14px; margin-bottom: 8px; cursor: pointer; transition: all 0.15s; }
+        .route-select-modal .route-option:active { transform: scale(0.97); }
+        .route-select-modal .route-option .header { display: flex; justify-content: space-between; align-items: center; }
+        .route-select-modal .route-option .name { font-weight: 600; font-size: 14px; color: #0f172a; }
+        .route-select-modal .route-option .status-tag { font-size: 11px; padding: 2px 10px; border-radius: 12px; font-weight: 500; }
+        .route-select-modal .route-option .status-tag.green { background: #d1fae5; color: #065f46; }
+        .route-select-modal .route-option .status-tag.yellow { background: #fef3c7; color: #92400e; }
+        .route-select-modal .route-option .status-tag.red { background: #fee2e2; color: #991b1b; }
+        .route-select-modal .route-option .desc { font-size: 12px; color: #475569; line-height: 1.3; margin-top: 2px; }
+        .route-select-modal .route-option .meta { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+        .form-group { margin-bottom: 14px; }
+        .form-group label { display: block; font-weight: 500; font-size: 13px; color: #334155; margin-bottom: 4px; }
+        .form-group .hint { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+        .form-control { width: 100%; padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-size: 14px; background: #fff; color: #0f172a; outline: none; transition: border 0.2s; }
+        .form-control:focus { border-color: #1a5cff; }
+        select.form-control { appearance: auto; }
+        .time-slots { display: flex; flex-wrap: wrap; gap: 6px; }
+        .time-slot { padding: 6px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 12px; font-weight: 500; background: #fff; cursor: pointer; transition: all 0.15s; }
+        .time-slot.selected { border-color: #1a5cff; background: #e8edff; color: #1a5cff; }
+        .time-slot.full { opacity: 0.4; cursor: not-allowed; background: #f1f5f9; }
+        .time-slot .cap { font-size: 10px; color: #94a3b8; }
+        .btn-primary { background: #1a5cff; color: #fff; border: none; padding: 12px; border-radius: 12px; font-weight: 600; font-size: 16px; width: 100%; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .btn-primary:active { background: #0d3fb8; }
+        .btn-outline { background: transparent; border: 1.5px solid #e2e8f0; color: #475569; padding: 8px 16px; border-radius: 10px; font-weight: 500; font-size: 13px; cursor: pointer; }
+        .result-box { margin-top: 12px; padding: 12px; background: #d1fae5; border-radius: 10px; text-align: center; font-size: 14px; color: #065f46; display: none; }
+        .result-box.show { display: block; }
+        .result-box .safety-tip { margin-top: 10px; padding: 10px 12px; background: #fffbeb; border: 1px solid #f59e0b; border-radius: 8px; color: #92400e; font-size: 12px; line-height: 1.6; text-align: left; }
+        .result-box .safety-tip i { color: #f59e0b; margin-right: 4px; }
+
+        /* ===== 飞行服务 ===== */
+        .flight-track-container { background: #eef2f6; border-radius: 12px; padding: 6px; margin-bottom: 14px; border: 1.5px solid #cbd5e1; position: relative; }
+        .flight-track-container canvas { width: 100%; height: 150px; display: block; border-radius: 8px; background: #d9e2ef; background-image: linear-gradient(rgba(200,212,230,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(200,212,230,0.3) 1px, transparent 1px); background-size: 20px 20px; }
+        .flight-track-legend { position: absolute; bottom: 12px; left: 12px; background: rgba(255,255,255,0.85); padding: 2px 10px; border-radius: 6px; font-size: 10px; color: #475569; display: flex; align-items: center; gap: 10px; }
+        .flight-track-legend .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+        .flight-track-legend .dot.green { background: #10b981; }
+        .flight-track-legend .dot.red { background: #ef4444; }
+        .flight-track-legend .dot.blue { background: #1a5cff; }
+        .flight-track-legend .line-sample { display: inline-block; width: 16px; height: 2px; background: #1a5cff; }
+
+        .weather-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px; }
+        .weather-item { background: #f8fafc; padding: 8px 4px; border-radius: 10px; text-align: center; border: 1px solid #f1f5f9; }
+        .weather-item .val { font-size: 18px; font-weight: 700; }
+        .weather-item .lbl { font-size: 10px; color: #94a3b8; }
+        .weather-item.warn { border-color: #f59e0b; background: #fffbeb; }
+        .alert-item { padding: 10px 12px; border-radius: 10px; background: #f8fafc; border-left: 4px solid #94a3b8; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; font-size: 13px; }
+        .alert-item.warn { border-left-color: #f59e0b; background: #fffbeb; }
+        .alert-item.danger { border-left-color: #ef4444; background: #fef2f2; }
+        .alert-item .time { font-size: 10px; color: #94a3b8; white-space: nowrap; }
+        .flight-status { background: #f8fafc; padding: 12px 16px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; border-left: 4px solid #10b981; }
+        .flight-status.warn { border-left-color: #f59e0b; }
+        .flight-status.danger { border-left-color: #ef4444; }
+
+        /* ===== 登录卡片 ===== */
+        .login-card { background: #f8fafc; border-radius: 12px; padding: 14px; margin-bottom: 14px; border: 1px solid #e2e8f0; }
+        .login-card .status-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+        .login-card .status-row .label { font-weight: 500; font-size: 14px; }
+        .login-card .status-row .badge { font-size: 12px; padding: 2px 12px; border-radius: 12px; }
+        .login-card .btn-group { display: flex; gap: 8px; flex-wrap: wrap; }
+        .login-card .btn-group .btn { flex: 1; min-width: 80px; padding: 8px 0; border-radius: 10px; border: none; font-weight: 500; font-size: 13px; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; justify-content: center; gap: 4px; }
+        .login-card .btn-group .btn:active { transform: scale(0.94); }
+        .login-card .btn-group .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .btn-zheli { background: #1a5cff; color: #fff; }
+
+        /* ===== 登录后内容 ===== */
+        .drone-info-item { background: #f1f5f9; border-radius: 8px; padding: 10px 14px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+        .drone-info-item .detail { font-size: 13px; }
+        .drone-info-item .detail .label { color: #64748b; }
+        .drone-info-item .tag { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: #d1fae5; color: #065f46; }
+
+        /* ===== 模态框 ===== */
+        .modal-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.4); z-index: 200; display: none; align-items: center; justify-content: center; }
+        .modal-overlay.show { display: flex; }
+        .modal-box { background: #fff; border-radius: 24px; padding: 24px; max-width: 320px; width: 90%; max-height: 70%; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.2); animation: modalIn 0.25s ease; }
+        @keyframes modalIn { from { opacity: 0; transform: scale(0.92); } to { opacity: 1; transform: scale(1); } }
+        .modal-box h3 { font-size: 18px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .modal-box .close-modal { float: right; background: none; border: none; font-size: 20px; color: #94a3b8; cursor: pointer; }
+        .modal-box .disclaimer-text { background: #f8fafc; padding: 12px; border-radius: 8px; font-size: 13px; line-height: 1.6; max-height: 140px; overflow-y: auto; margin-bottom: 12px; color: #334155; }
+        .modal-box .timer { font-size: 13px; color: #64748b; margin-bottom: 8px; }
+        .modal-box .btn-confirm { width: 100%; padding: 12px; border: none; border-radius: 12px; background: #1a5cff; color: #fff; font-weight: 600; font-size: 16px; cursor: pointer; }
+        .modal-box .btn-confirm:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .profile-card { display: flex; align-items: center; gap: 16px; padding: 12px 0; border-bottom: 1px solid #f1f5f9; margin-bottom: 12px; }
+        .profile-card .avatar-lg { width: 60px; height: 60px; background: #1a5cff; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 24px; font-weight: 600; }
+        .profile-card .info .name { font-weight: 600; font-size: 18px; }
+        .profile-card .info .sub { font-size: 13px; color: #64748b; }
+        .menu-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #f1f5f9; font-size: 14px; cursor: pointer; }
+        .menu-item i:first-child { width: 24px; color: #1a5cff; }
+        .menu-item .arrow { color: #cbd5e1; }
+
+        /* ===== 退出登录按钮 ===== */
+        .logout-btn-wrap { padding: 8px 0 4px; }
+        .btn-logout { width: 100%; padding: 12px; border: 1.5px solid #ef4444; border-radius: 12px; background: transparent; color: #ef4444; font-weight: 600; font-size: 16px; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .btn-logout:active { background: #fef2f2; transform: scale(0.97); }
+
+        /* ===== 底部导航 ===== */
+        .bottom-nav { position: absolute; bottom: 0; left: 0; right: 0; background: #ffffff; border-top: 1px solid #eef2f6; display: flex; justify-content: space-around; padding: 6px 0 12px; flex-shrink: 0; backdrop-filter: blur(8px); border-radius: 0 0 40px 40px; z-index: 10; }
+        .bottom-nav .nav-item { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 10px; color: #94a3b8; cursor: pointer; transition: color 0.2s; border: none; background: transparent; padding: 4px 12px; min-width: 56px; }
+        .bottom-nav .nav-item i { font-size: 22px; }
+        .bottom-nav .nav-item.active { color: #1a5cff; }
+        .bottom-nav .nav-item:active { transform: scale(0.92); }
+
+        .flex { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .flex-between { display: flex; justify-content: space-between; align-items: center; }
+        .mt-8 { margin-top: 8px; }
+        .mb-8 { margin-bottom: 8px; }
+        .text-muted { color: #94a3b8; font-size: 12px; }
+        .tag { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 500; }
+        .tag.green { background: #d1fae5; color: #065f46; }
+        .tag.yellow { background: #fef3c7; color: #92400e; }
+        .tag.red { background: #fee2e2; color: #991b1b; }
+        .tag.blue { background: #dbeafe; color: #1e40af; }
+        .tag.gray { background: #e2e8f0; color: #64748b; }
+        #loggedInContent { display: none; }
+        #loggedInContent.show { display: block; }
+        #loginCardWrap.hidden { display: none; }
+
+        /* ===== 区域选择器样式 ===== */
+        .area-selector-wrap { display: flex; align-items: center; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+        .area-selector-wrap select { padding: 4px 8px; border-radius: 6px; border: 1px solid #e2e8f0; font-size: 13px; background: #fff; outline: none; }
+        .area-selector-wrap select:focus { border-color: #1a5cff; }
+        .area-selector-wrap .btn-select-route { padding: 4px 16px; font-size: 13px; }
+    </style>
+</head>
+<body>
+
+<div class="phone-frame" id="phoneFrame">
+    <!-- 状态栏 -->
+    <div class="status-bar">
+        <span>12:49</span>
+        <span><i class="fas fa-signal"></i> <i class="fas fa-wifi"></i> <i class="fas fa-battery-three-quarters"></i></span>
+    </div>
+
+    <!-- 主要内容 -->
+    <div class="app-content" id="appContent">
+        <!-- 顶部标题栏 -->
+        <div class="top-header">
+            <div class="title"><i class="fas fa-drone"></i> 浙里畅飞</div>
+            <button class="ai-icon" id="globalAiBtn"><i class="fas fa-robot"></i></button>
+        </div>
+
+        <!-- 搜索框 (仅在适飞空域显示) -->
+        <div class="search-box" id="globalSearch">
+            <i class="fas fa-search"></i>
+            <input type="text" placeholder="请输入地名或经纬度" />
+            <i class="fas fa-times-circle" style="color:#cbd5e1; cursor:pointer;"></i>
+        </div>
+
+        <!-- ======================================== -->
+        <!-- 面板1: 适飞空域 -->
+        <!-- ======================================== -->
+        <div class="panel" id="panelAirspace">
+            <div class="map-placeholder">
+                <div class="map-bg">
+                    <div class="airspace-poly"></div>
+                    <div class="route-line"></div>
+                    <div class="plane-icon"><i class="fas fa-plane"></i></div>
+                    <div style="position:absolute; top:55%; left:30%; width:10px; height:10px; background:#1a5cff; border-radius:50%; box-shadow:0 0 0 4px rgba(26,92,255,0.2);"></div>
+                    <div style="position:absolute; top:40%; left:70%; width:8px; height:8px; background:#f59e0b; border-radius:50%; box-shadow:0 0 0 4px rgba(245,158,11,0.2);"></div>
+                    <div class="map-label">
+                        <span><span class="dot blue"></span> 适飞空域</span>
+                        <span><span class="dot orange"></span> 热门航线</span>
+                        <span><i class="fas fa-map-pin" style="color:#1a5cff;"></i> 起降点</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="legend-row">
+                <span class="legend-item"><span class="dot blue"></span> 适飞空域</span>
+                <span class="legend-item"><span class="dot orange"></span> 热门航线</span>
+                <span class="legend-item"><span class="ai-click" id="aiLegendBtn"><i class="fas fa-robot"></i> AI助手</span></span>
+            </div>
+
+            <div class="airspace-info">
+                <span><span class="code">GS(2025)5996号</span>  <span style="color:#64748b;font-size:12px;">· 西湖区</span></span>
+                <span class="status"><i class="fas fa-check-circle"></i> 适飞</span>
+            </div>
+
+            <div class="quick-actions">
+                <button class="btn-outline"><i class="fas fa-route"></i> 查航线</button>
+                <button class="btn-outline"><i class="fas fa-map"></i> 查区域</button>
+            </div>
+
+            <div class="hot-routes-title"><i class="fas fa-fire"></i> 热门航线推荐</div>
+            <div id="hotRoutesList">
+                <div class="route-card-mini" data-route-id="1">
+                    <div class="header">
+                        <span class="name">🛩️ 瓯海中心区观光航线</span>
+                        <span class="status-tag green">可约</span>
+                    </div>
+                    <div class="desc">环绕瓯海中心商务区，俯瞰城市天际线，适合航拍与城市景观飞行。</div>
+                    <div class="meta">
+                        <span><i class="fas fa-location-dot"></i> 距离 1.2km</span>
+                        <span><i class="fas fa-clock"></i> 约15分钟</span>
+                    </div>
+                    <div class="actions">
+                        <button class="btn-book-mini" data-route="1"><i class="fas fa-calendar-plus"></i> 预约飞行</button>
+                    </div>
+                </div>
+                <div class="route-card-mini" data-route-id="2">
+                    <div class="header">
+                        <span class="name">🌿 三垟湿地生态航线</span>
+                        <span class="status-tag yellow">紧张</span>
+                    </div>
+                    <div class="desc">低空穿越湿地公园，观察鸟类与自然景观，感受生态宁静之美。</div>
+                    <div class="meta">
+                        <span><i class="fas fa-location-dot"></i> 距离 3.8km</span>
+                        <span><i class="fas fa-clock"></i> 约25分钟</span>
+                    </div>
+                    <div class="actions">
+                        <button class="btn-book-mini" data-route="2"><i class="fas fa-calendar-plus"></i> 预约飞行</button>
+                    </div>
+                </div>
+                <div class="route-card-mini" data-route-id="3">
+                    <div class="header">
+                        <span class="name">⛰️ 大罗山风景航线</span>
+                        <span class="status-tag green">可约</span>
+                    </div>
+                    <div class="desc">沿大罗山脊飞行，欣赏山峦叠翠与水库风光，是自然爱好者的首选。</div>
+                    <div class="meta">
+                        <span><i class="fas fa-location-dot"></i> 距离 5.4km</span>
+                        <span><i class="fas fa-clock"></i> 约30分钟</span>
+                    </div>
+                    <div class="actions">
+                        <button class="btn-book-mini" data-route="3"><i class="fas fa-calendar-plus"></i> 预约飞行</button>
+                    </div>
+                </div>
+                <div class="route-card-mini" data-route-id="4">
+                    <div class="header">
+                        <span class="name">🎓 茶山高教园区航线</span>
+                        <span class="status-tag red">已满</span>
+                    </div>
+                    <div class="desc">飞行经过温州大学城，俯瞰校园建筑与青春活力，学术氛围浓厚。</div>
+                    <div class="meta">
+                        <span><i class="fas fa-location-dot"></i> 距离 7.1km</span>
+                        <span><i class="fas fa-clock"></i> 约20分钟</span>
+                    </div>
+                    <div class="actions">
+                        <button class="btn-book-mini" data-route="4" disabled style="opacity:0.5;cursor:not-allowed;"><i class="fas fa-calendar-plus"></i> 已满</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="footer-note">
+                <i class="fas fa-info-circle"></i> 本服务由浙江政务服务网、浙江省交通运输厅提供<br/>
+                <i class="fas fa-phone"></i> 咨询服务热线：0571-87163901
+            </div>
+        </div>
+
+        <!-- ======================================== -->
+        <!-- 面板2: 预约飞行 -->
+        <!-- ======================================== -->
+        <div class="panel" id="panelBooking">
+            <div class="card">
+                <div class="card-title"><i class="fas fa-calendar-check"></i> 预约飞行</div>
+                <div style="display:flex;gap:4px;margin-bottom:14px;font-size:11px;font-weight:500;color:#94a3b8;flex-wrap:wrap;">
+                    <span style="background:#1a5cff;color:#fff;padding:2px 12px;border-radius:12px;">1.航线</span>
+                    <span style="background:#f1f5f9;padding:2px 12px;border-radius:12px;">2.飞行设备</span>
+                    <span style="background:#f1f5f9;padding:2px 12px;border-radius:12px;">3.时段</span>
+                    <span style="background:#f1f5f9;padding:2px 12px;border-radius:12px;">4.用途</span>
+                    <span style="background:#f1f5f9;padding:2px 12px;border-radius:12px;">5.确认</span>
+                </div>
+
+                <div class="form-group">
+                    <label>推荐航线</label>
+                    <div id="selectedRouteDisplay" class="selected-route-card" data-route="1">
+                        <!-- 由JS动态渲染 -->
+                    </div>
+                    <div class="area-selector-wrap">
+                        <select id="citySelect">
+                            <option value="温州市" selected>温州市</option>
+                            <option value="杭州市">杭州市</option>
+                            <option value="宁波市">宁波市</option>
+                        </select>
+                        <select id="districtSelect">
+                            <option value="瓯海区" selected>瓯海区</option>
+                            <option value="鹿城区">鹿城区</option>
+                            <option value="龙湾区">龙湾区</option>
+                        </select>
+                        <button class="btn-outline btn-select-route" id="switchRouteBtn">
+                            <i class="fas fa-exchange-alt"></i> 选择航线
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>选择飞行设备</label>
+                    <select class="form-control" id="droneSelect">
+                        <option value="MAV3">DJI Mavic 3 (SN: MAV3-2026-001)</option>
+                        <option value="AIR2S">DJI Air 2S (SN: AIR2S-2026-099)</option>
+                        <option value="MINI3">DJI Mini 3 (SN: MINI3-2026-045)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>选择时段 <span class="text-muted">(最多2个)</span></label>
+                    <div class="time-slots">
+                        <div class="time-slot selected">08:00-09:00 <span class="cap">(3/8)</span></div>
+                        <div class="time-slot selected">09:00-10:00 <span class="cap">(5/8)</span></div>
+                        <div class="time-slot full">10:00-11:00 <span class="cap">(8/8) 满</span></div>
+                        <div class="time-slot">11:00-12:00 <span class="cap">(2/8)</span></div>
+                        <div class="time-slot">12:00-13:00 <span class="cap">(1/8)</span></div>
+                        <div class="time-slot full">13:00-14:00 <span class="cap">(8/8) 满</span></div>
+                        <div class="time-slot">14:00-15:00 <span class="cap">(0/8)</span></div>
+                        <div class="time-slot">15:00-16:00 <span class="cap">(0/8)</span></div>
+                    </div>
+                    <div class="hint"><i class="fas fa-info-circle"></i> 已选连续2时段</div>
+                </div>
+
+                <div class="form-group">
+                    <label>飞行用途</label>
+                    <div class="flex">
+                        <label style="display:flex;align-items:center;gap:4px;font-weight:400;font-size:14px;">
+                            <input type="radio" name="purpose" value="entertain" checked /> 娱乐飞行
+                        </label>
+                        <label style="display:flex;align-items:center;gap:4px;font-weight:400;font-size:14px;">
+                            <input type="radio" name="purpose" value="other" id="purposeOther" /> 其他
+                        </label>
+                    </div>
+                    <div id="otherAlert" style="display:none;margin-top:8px;padding:8px 12px;background:#fef3c7;border-radius:8px;font-size:12px;color:#92400e;">
+                        <i class="fas fa-exclamation-triangle"></i> 本平台仅支持个人娱乐飞行，请返回。
+                        <button class="btn-outline" style="padding:2px 12px;font-size:11px;margin-top:4px;" onclick="document.querySelector('input[name=\'purpose\'][value=\'entertain\']').click();document.getElementById('otherAlert').style.display='none';">返回娱乐</button>
+                    </div>
+                </div>
+
+                <button class="btn-primary" onclick="submitBooking()"><i class="fas fa-paper-plane"></i> 提交预约</button>
+                <div id="bookingResult" class="result-box">
+                    <div><i class="fas fa-check-circle" style="color:#10b981;"></i> 预约成功！</div>
+                    <div style="font-size:12px;margin-top:4px;" id="bookingResultDetail">瓯海中心区观光航线 · 08:00-10:00 | 自动校验通过</div>
+                    <div class="safety-tip">
+                        <i class="fas fa-shield-alt"></i> 请在气象条件良好的条件下进行飞行，飞行过程中请务必遵守相关规定，请勿越过适飞区域边界，请勿超限飞行。
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ======================================== -->
+        <!-- 面板3: 飞行服务 （顺序：实时气象 → 飞行地图 → 当前飞行状态 → 告警中心） -->
+        <!-- ======================================== -->
+        <div class="panel" id="panelService">
+            <div class="card">
+                <div class="card-title"><i class="fas fa-cloud-sun"></i> 飞行服务 <span class="tag yellow"><i class="fas fa-bell"></i> 2条预警</span></div>
+
+                <!-- 1. 实时气象 -->
+                <div style="margin-bottom:14px;">
+                    <div class="flex-between"><span style="font-weight:500;font-size:14px;">实时气象 · 瓯海中心</span><span class="text-muted">14:32</span></div>
+                    <div class="weather-grid">
+                        <div class="weather-item"><div class="val">26°</div><div class="lbl">气温</div></div>
+                        <div class="weather-item"><div class="val">3.2m/s</div><div class="lbl">风速</div></div>
+                        <div class="weather-item warn"><div class="val">72%</div><div class="lbl">降水</div></div>
+                        <div class="weather-item"><div class="val">8.5km</div><div class="lbl">能见度</div></div>
+                    </div>
+                    <div class="text-muted" style="margin-top:4px;"><i class="fas fa-triangle-exclamation" style="color:#f59e0b;"></i> 降水概率较高，建议携带防雨设备</div>
+                </div>
+
+                <!-- 2. 飞行地图（轨迹） -->
+                <div style="margin-bottom:14px;">
+                    <div class="flight-track-container">
+                        <canvas id="flightTrackCanvas" height="150"></canvas>
+                        <div class="flight-track-legend">
+                            <span><span class="dot green"></span> 起点</span>
+                            <span><span class="dot red"></span> 当前位置</span>
+                            <span><span class="line-sample"></span> 轨迹</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. 当前飞行状态 -->
+                <div style="margin-bottom:14px;">
+                    <div class="flex-between"><span style="font-weight:500;font-size:14px;">当前飞行状态</span><span class="tag blue">飞行中</span></div>
+                    <div class="flight-status warn">
+                        <span><strong>DJI Mavic 3</strong> <span class="text-muted">· 飞行中</span></span>
+                        <span><span class="tag yellow">高度 112m</span> <span class="tag blue">距边界 120m</span></span>
+                        <span class="text-muted" style="font-size:12px;">剩余 6 min</span>
+                    </div>
+                </div>
+
+                <!-- 4. 告警中心 -->
+                <div>
+                    <div class="flex-between"><span style="font-weight:500;font-size:14px;">告警中心</span><span class="tag red">1条紧急</span></div>
+                    <div class="alert-item warn"><span class="time">14:28</span><span>⚠️ 临近边界 120m</span><span class="tag yellow">预警</span></div>
+                    <div class="alert-item danger"><span class="time">14:15</span><span>🚨 高度超限 115/120m</span><span class="tag red">告警</span></div>
+                    <div class="flex" style="margin-top:8px;">
+                        <button class="btn-outline" style="flex:1;justify-content:center;"><i class="fas fa-phone"></i> 联系网格员</button>
+                    </div>
+                    <div class="text-muted" style="margin-top:6px;"><i class="fas fa-sms"></i> 预警已短信，告警将电话提醒</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ======================================== -->
+        <!-- 面板4: 我的 (首页) -->
+        <!-- ======================================== -->
+        <div class="panel active" id="panelMine">
+            <div id="loginCardWrap">
+                <div class="login-card">
+                    <div class="status-row">
+                        <span class="label"><i class="fas fa-user-check" style="color:#1a5cff;"></i> 登录状态</span>
+                        <span class="badge tag gray" id="loginStatusBadge"><i class="fas fa-times-circle"></i> 未登录</span>
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn btn-zheli" id="zheliLoginBtn"><i class="fas fa-id-card"></i> 浙里办登录</button>
+                    </div>
+                    <div style="margin-top:10px;font-size:12px;color:#94a3b8;">
+                        <i class="fas fa-info-circle"></i> 登录后即可管理无人机和预约飞行
+                    </div>
+                </div>
+            </div>
+
+            <div id="loggedInContent">
+                <div class="card">
+                    <div class="profile-card">
+                        <div class="avatar-lg">张</div>
+                        <div class="info">
+                            <div class="name">张明 <span class="tag green" id="userStatusTag">已认证</span></div>
+                            <div class="sub">身份证 3301**********1234</div>
+                            <div class="sub">手机 138****5678</div>
+                        </div>
+                    </div>
+                    <div style="background:#f8fafc;padding:12px 16px;border-radius:10px;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                        <div><div style="font-size:12px;color:#64748b;">信用分</div><div style="font-size:24px;font-weight:700;color:#1a5cff;">85</div></div>
+                        <div><span class="tag green"><i class="fas fa-star"></i> 良好</span><div style="font-size:11px;color:#94a3b8;margin-top:2px;">近30天无违规</div></div>
+                        <button class="btn-outline" style="padding:4px 12px;font-size:12px;">答题恢复</button>
+                    </div>
+                </div>
+
+                <div class="card" id="droneCard">
+                    <div class="card-title"><i class="fas fa-drone"></i> 我的无人机 <span class="tag blue" id="droneCount">0架</span></div>
+                    <div id="droneList">
+                        <div style="text-align:center;padding:16px 0;color:#94a3b8;font-size:13px;">
+                            <i class="fas fa-qrcode"></i> 请扫码绑定无人机
+                        </div>
+                    </div>
+                    <button class="btn-outline" style="margin-top:8px;width:100%;justify-content:center;display:flex;gap:6px;" id="scanUomBtn">
+                        <i class="fas fa-qrcode"></i> 扫码绑定
+                    </button>
+                    <button class="btn-outline" style="margin-top:8px;width:100%;justify-content:center;display:flex;gap:6px;" id="manualAddDroneBtn">
+                        <i class="fas fa-pen"></i> 手动录入无人机
+                    </button>
+                </div>
+
+                <div class="card">
+                    <div class="menu-item" id="bookingHistoryBtn"><i class="fas fa-calendar-alt"></i> 预约记录 <i class="fas fa-chevron-right arrow"></i></div>
+                    <div class="menu-item" id="flightTrackBtn"><i class="fas fa-route"></i> 飞行足迹 <i class="fas fa-chevron-right arrow"></i></div>
+                    <div class="menu-item" id="creditArchiveBtn"><i class="fas fa-file-alt"></i> 信用分档案 <i class="fas fa-chevron-right arrow"></i></div>
+                </div>
+
+                <div class="logout-btn-wrap">
+                    <button class="btn-logout" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> 退出登录</button>
+                </div>
+            </div>
+
+            <div class="footer-note" style="border-top:none;padding-top:0;">
+                <i class="fas fa-shield-alt"></i> 本服务由浙江政务服务网提供
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== AI 助手遮罩 ===== -->
+    <div class="ai-overlay" id="aiOverlay"></div>
+
+    <!-- ===== AI 对话抽屉 ===== -->
+    <div class="ai-drawer" id="aiDrawer">
+        <div class="ai-drawer-header">
+            <div class="title"><i class="fas fa-robot"></i> 空域AI助手</div>
+            <button class="close-btn" id="aiCloseBtn"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="ai-messages" id="aiMessages"></div>
+        <div class="ai-suggestions" id="aiSuggestions">
+            <button data-query="查询西湖区适飞空域">🏙️ 西湖区适飞空域</button>
+            <button data-query="附近热门航线有哪些？">✈️ 热门航线</button>
+            <button data-query="推荐一条可预约的航线">📋 推荐可预约航线</button>
+            <button data-query="常见问题咨询">❓ 常见问题</button>
+            <button data-query="政策法规查询">📜 政策法规</button>
+        </div>
+        <div class="ai-input-area">
+            <input type="text" id="aiInput" placeholder="输入你想了解的问题..." />
+            <button class="send-btn" id="aiSendBtn"><i class="fas fa-paper-plane"></i></button>
+        </div>
+    </div>
+
+    <!-- ===== 模态框 ===== -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal-box" id="modalBox">
+            <button class="close-modal" id="modalCloseBtn"><i class="fas fa-times"></i></button>
+            <h3 id="modalTitle"><i class="fas fa-route"></i> 选择航线</h3>
+            <div id="modalBody">
+                <!-- 动态内容 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== 底部导航 ===== -->
+    <div class="bottom-nav" id="bottomNav">
+        <button class="nav-item" data-panel="panelAirspace">
+            <i class="fas fa-map"></i><span>适飞空域</span>
+        </button>
+        <button class="nav-item" data-panel="panelBooking">
+            <i class="fas fa-calendar-plus"></i><span>预约飞行</span>
+        </button>
+        <button class="nav-item" data-panel="panelService">
+            <i class="fas fa-cloud-sun"></i><span>飞行服务</span>
+        </button>
+        <button class="nav-item active" data-panel="panelMine">
+            <i class="fas fa-user"></i><span>我的</span>
+        </button>
+    </div>
+</div>
+
+<script>
+    // ============================================================
+    // 航线数据
+    // ============================================================
+    const routesData = [
+        { id: '1', name: '瓯海中心区观光航线', icon: '🛩️', status: '可约', statusClass: 'green', desc: '环绕瓯海中心商务区，俯瞰城市天际线，适合航拍与城市景观飞行。', dist: '1.2km', duration: '约15分钟' },
+        { id: '2', name: '三垟湿地生态航线', icon: '🌿', status: '紧张', statusClass: 'yellow', desc: '低空穿越湿地公园，观察鸟类与自然景观，感受生态宁静之美。', dist: '3.8km', duration: '约25分钟' },
+        { id: '3', name: '大罗山风景航线', icon: '⛰️', status: '可约', statusClass: 'green', desc: '沿大罗山脊飞行，欣赏山峦叠翠与水库风光，是自然爱好者的首选。', dist: '5.4km', duration: '约30分钟' },
+        { id: '4', name: '茶山高教园区航线', icon: '🎓', status: '已满', statusClass: 'red', desc: '飞行经过温州大学城，俯瞰校园建筑与青春活力，学术氛围浓厚。', dist: '7.1km', duration: '约20分钟' }
+    ];
+    let currentRouteId = '1';
+
+    // ============================================================
+    // 市-区联动数据
+    // ============================================================
+    const districtData = {
+        '温州市': ['瓯海区', '鹿城区', '龙湾区'],
+        '杭州市': ['西湖区', '拱墅区', '上城区', '滨江区'],
+        '宁波市': ['海曙区', '鄞州区', '江北区', '镇海区']
+    };
+
+    // ============================================================
+    // DOM 引用
+    // ============================================================
+    const selectedRouteDisplay = document.getElementById('selectedRouteDisplay');
+    const bookingResultDetail = document.getElementById('bookingResultDetail');
+    const switchRouteBtn = document.getElementById('switchRouteBtn');
+    const citySelect = document.getElementById('citySelect');
+    const districtSelect = document.getElementById('districtSelect');
+    const modalOverlay = document.getElementById('modalOverlay');
+    const modalCloseBtn = document.getElementById('modalCloseBtn');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalBody = document.getElementById('modalBody');
+
+    // ============================================================
+    // 渲染当前航线
+    // ============================================================
+    function renderSelectedRoute() {
+        const route = routesData.find(r => r.id === currentRouteId);
+        if (!route) return;
+        selectedRouteDisplay.dataset.route = route.id;
+        selectedRouteDisplay.innerHTML = `
+            <div class="header">
+                <span class="name">${route.icon} ${route.name}</span>
+                <span class="status-tag ${route.statusClass}">${route.status}</span>
+            </div>
+            <div class="desc">${route.desc}</div>
+            <div class="meta">
+                <span><i class="fas fa-location-dot"></i> 距离 ${route.dist}</span>
+                <span><i class="fas fa-clock"></i> ${route.duration}</span>
+            </div>
+        `;
+        if (bookingResultDetail) {
+            bookingResultDetail.textContent = `${route.icon} ${route.name} · 08:00-10:00 | 自动校验通过`;
+        }
+    }
+
+    // ============================================================
+    // 更新区级下拉框
+    // ============================================================
+    function updateDistricts() {
+        const city = citySelect.value;
+        const districts = districtData[city] || ['请选择'];
+        districtSelect.innerHTML = '';
+        districts.forEach(d => {
+            const opt = document.createElement('option');
+            opt.value = d;
+            opt.textContent = d;
+            districtSelect.appendChild(opt);
+        });
+    }
+
+    citySelect.addEventListener('change', updateDistricts);
+
+    // ============================================================
+    // 模态框控制
+    // ============================================================
+    function showModal(titleHtml, bodyHtml) {
+        modalTitle.innerHTML = titleHtml;
+        modalBody.innerHTML = bodyHtml;
+        modalOverlay.classList.add('show');
+    }
+
+    function hideModal() {
+        modalOverlay.classList.remove('show');
+    }
+
+    modalCloseBtn.addEventListener('click', hideModal);
+    modalOverlay.addEventListener('click', function(e) {
+        if (e.target === modalOverlay) hideModal();
+    });
+
+    // ============================================================
+    // 选择航线
+    // ============================================================
+    switchRouteBtn.addEventListener('click', function() {
+        let html = `<div class="route-select-modal">`;
+        routesData.forEach(route => {
+            const isSelected = route.id === currentRouteId;
+            html += `
+                <div class="route-option" data-route-id="${route.id}" style="${isSelected ? 'border-color:#1a5cff; background:#e8edff;' : ''}">
+                    <div class="header">
+                        <span class="name">${route.icon} ${route.name}</span>
+                        <span class="status-tag ${route.statusClass}">${route.status}</span>
+                    </div>
+                    <div class="desc">${route.desc}</div>
+                    <div class="meta">
+                        <span><i class="fas fa-location-dot"></i> 距离 ${route.dist}</span>
+                        <span><i class="fas fa-clock"></i> ${route.duration}</span>
+                    </div>
+                    ${isSelected ? '<div style="text-align:right;margin-top:4px;color:#1a5cff;font-size:12px;"><i class="fas fa-check-circle"></i> 当前选中</div>' : ''}
+                </div>
+            `;
+        });
+        html += `</div>`;
+        showModal('<i class="fas fa-route"></i> 选择航线', html);
+
+        document.querySelectorAll('.route-option').forEach(el => {
+            el.addEventListener('click', function() {
+                const newId = this.dataset.routeId;
+                if (newId && newId !== currentRouteId) {
+                    currentRouteId = newId;
+                    renderSelectedRoute();
+                    hideModal();
+                } else {
+                    hideModal();
+                }
+            });
+        });
+    });
+
+    // ============================================================
+    // 热门航线预约跳转
+    // ============================================================
+    document.querySelectorAll('.btn-book-mini:not([disabled])').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const routeId = this.dataset.route;
+            if (routeId) {
+                currentRouteId = routeId;
+                renderSelectedRoute();
+                switchPanel('panelBooking');
+            }
+        });
+    });
+
+    // ============================================================
+    // 导航切换
+    // ============================================================
+    const navItems = document.querySelectorAll('.bottom-nav .nav-item');
+    const panels = {
+        panelAirspace: document.getElementById('panelAirspace'),
+        panelBooking: document.getElementById('panelBooking'),
+        panelService: document.getElementById('panelService'),
+        panelMine: document.getElementById('panelMine'),
+    };
+    const searchBox = document.getElementById('globalSearch');
+
+    function switchPanel(panelId) {
+        navItems.forEach(n => n.classList.remove('active'));
+        const targetNav = Array.from(navItems).find(n => n.dataset.panel === panelId);
+        if (targetNav) targetNav.classList.add('active');
+
+        if (panelId === 'panelAirspace') {
+            searchBox.style.display = 'flex';
+        } else {
+            searchBox.style.display = 'none';
+        }
+
+        Object.values(panels).forEach(p => p.classList.remove('active'));
+        if (panels[panelId]) panels[panelId].classList.add('active');
+
+        document.getElementById('appContent').scrollTop = 0;
+
+        if (panelId === 'panelService') {
+            drawFlightTrack();
+        }
+    }
+
+    navItems.forEach(item => {
+        item.addEventListener('click', function() {
+            const panelId = this.dataset.panel;
+            switchPanel(panelId);
+        });
+    });
+
+    // ============================================================
+    // 飞行轨迹绘制
+    // ============================================================
+    function drawFlightTrack() {
+        const canvas = document.getElementById('flightTrackCanvas');
+        if (!canvas) return;
+        const width = canvas.parentElement.clientWidth - 12;
+        const height = 150;
+        canvas.width = width * window.devicePixelRatio;
+        canvas.height = height * window.devicePixelRatio;
+        canvas.style.width = width + 'px';
+        canvas.style.height = height + 'px';
+        const ctx = canvas.getContext('2d');
+        ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+
+        ctx.clearRect(0, 0, width, height);
+
+        ctx.strokeStyle = 'rgba(200,212,230,0.5)';
+        ctx.lineWidth = 0.5;
+        for (let x = 0; x < width; x += 20) {
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, height);
+            ctx.stroke();
+        }
+        for (let y = 0; y < height; y += 20) {
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(width, y);
+            ctx.stroke();
+        }
+
+        const points = [
+            { x: 0.08, y: 0.75 },
+            { x: 0.22, y: 0.45 },
+            { x: 0.40, y: 0.20 },
+            { x: 0.55, y: 0.55 },
+            { x: 0.70, y: 0.30 },
+            { x: 0.85, y: 0.60 },
+            { x: 0.95, y: 0.25 }
+        ];
+        const margin = 12;
+        const pts = points.map(p => ({
+            x: margin + (width - 2 * margin) * p.x,
+            y: margin + (height - 2 * margin) * p.y
+        }));
+
+        ctx.beginPath();
+        ctx.moveTo(pts[0].x, pts[0].y);
+        for (let i = 1; i < pts.length; i++) {
+            const xc = (pts[i-1].x + pts[i].x) / 2;
+            const yc = (pts[i-1].y + pts[i].y) / 2;
+            ctx.quadraticCurveTo(pts[i-1].x, pts[i-1].y, xc, yc);
+        }
+        ctx.strokeStyle = '#1a5cff';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        const midIdx = Math.floor(pts.length / 2);
+        const p1 = pts[midIdx];
+        const p2 = pts[midIdx + 1] || pts[midIdx];
+        const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+        const arrowLen = 12;
+        const ax = p1.x + 8 * Math.cos(angle);
+        const ay = p1.y + 8 * Math.sin(angle);
+        ctx.save();
+        ctx.translate(ax, ay);
+        ctx.rotate(angle);
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(-arrowLen, -arrowLen/2);
+        ctx.lineTo(-arrowLen, arrowLen/2);
+        ctx.closePath();
+        ctx.fillStyle = '#1a5cff';
+        ctx.fill();
+        ctx.restore();
+
+        ctx.beginPath();
+        ctx.arc(pts[0].x, pts[0].y, 6, 0, 2 * Math.PI);
+        ctx.fillStyle = '#10b981';
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        const last = pts[pts.length - 1];
+        ctx.beginPath();
+        ctx.arc(last.x, last.y, 7, 0, 2 * Math.PI);
+        ctx.fillStyle = '#ef4444';
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(last.x, last.y, 12, 0, 2 * Math.PI);
+        ctx.strokeStyle = 'rgba(239,68,68,0.3)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    }
+
+    // ============================================================
+    // AI助手
+    // ============================================================
+    const globalAiBtn = document.getElementById('globalAiBtn');
+    const aiLegendBtn = document.getElementById('aiLegendBtn');
+    const aiDrawer = document.getElementById('aiDrawer');
+    const aiOverlay = document.getElementById('aiOverlay');
+    const aiCloseBtn = document.getElementById('aiCloseBtn');
+    const aiMessages = document.getElementById('aiMessages');
+    const aiInput = document.getElementById('aiInput');
+    const aiSendBtn = document.getElementById('aiSendBtn');
+    const suggestionBtns = document.querySelectorAll('.ai-suggestions button');
+
+    function getBotResponse(query) {
+        const lower = query.toLowerCase();
+        if (lower.includes('西湖区') && (lower.includes('适飞') || lower.includes('空域'))) {
+            return '📍 西湖区适飞空域信息：\n• 空域编号：GS(2025)5996号\n• 状态：✅ 适飞\n• 高度限制：120m\n• 面积：约 45 平方公里\n• 注意：请避开西湖核心景区及军事管理区。';
+        } else if (lower.includes('热门航线') || lower.includes('航线介绍')) {
+            return '✈️ 附近热门航线推荐：\n\n1. 西湖环湖航线\n   • 介绍：环绕西湖飞行，俯瞰苏堤、雷峰塔等景点。\n   • 可预约时段：08:00-09:00, 09:00-10:00\n   • 容量：3/8\n\n2. 钱塘江观潮航线\n   • 介绍：沿钱塘江飞行，观赏壮观江景。\n   • 可预约时段：14:00-15:00, 15:00-16:00\n   • 容量：0/8（充裕）\n\n3. 西溪湿地生态航线\n   • 介绍：低空穿越湿地，观察生态景观。\n   • 可预约时段：10:00-11:00（已满）, 11:00-12:00\n   • 容量：2/8';
+        } else if (lower.includes('推荐') && (lower.includes('航线') || lower.includes('预约'))) {
+            return '📋 为您推荐可预约航线：\n\n🌟 钱塘江观潮航线\n• 介绍：沿钱塘江飞行，观赏壮观江景。\n• 可预约时段：14:00-15:00, 15:00-16:00\n• 容量：0/8（充裕）\n\n可以直接在「预约飞行」中快速预约。';
+        } else if (lower.includes('常见问题') || lower.includes('咨询')) {
+            return '❓ 常见问题咨询：\n\n1. 如何预约飞行？\n   答：点击底部「预约飞行」→选择航线、时段、用途，提交即可。\n\n2. 飞行需要哪些资质？\n   答：需完成UOM实名认证，持有民航局飞手证，并购买保险。\n\n3. 飞行高度限制是多少？\n   答：一般微轻小无人机限高120米，具体见空域详情。\n\n4. 天气不好能飞吗？\n   答：平台会显示实时气象，恶劣天气会自动预警并禁止预约。\n\n更多问题可咨询热线 0571-87163901。';
+        } else if (lower.includes('政策') || lower.includes('法规') || lower.includes('条例')) {
+            return '📜 政策法规查询：\n\n• 《无人驾驶航空器飞行管理暂行条例》（国务院令第761号）\n• 《浙江省无人驾驶航空器公共安全管理规定》\n• 《民用无人驾驶航空器系统空中交通管理办法》\n\n核心要点：\n- 所有飞行需在适飞空域内进行。\n- 必须实名登记，并在飞行前获取批准。\n- 禁止在机场净空区、军事区、人群密集区等禁飞区飞行。\n- 违反规定将面临处罚，并影响信用分。\n\n详细法规可查阅“我的”→“知识库”或访问浙江政务服务网。';
+        } else {
+            return '🤔 您可以这样问我：\n• “查询西湖区适飞空域”\n• “附近热门航线有哪些？”\n• “推荐一条可预约的航线”\n• “常见问题咨询”\n• “政策法规查询”\n或者输入具体地名或航线名称。';
+        }
+    }
+
+    function addMessage(text, sender) {
+        const msg = document.createElement('div');
+        msg.className = `ai-message ${sender}`;
+        msg.innerHTML = text.replace(/\n/g, '<br/>');
+        aiMessages.appendChild(msg);
+        aiMessages.scrollTop = aiMessages.scrollHeight;
+    }
+
+    function handleUserQuery(query) {
+        if (!query.trim()) return;
+        addMessage(query, 'user');
+        aiInput.value = '';
+        setTimeout(() => {
+            addMessage(getBotResponse(query), 'bot');
+        }, 300);
+    }
+
+    function openDrawer(initialQuery) {
+        aiDrawer.classList.add('open');
+        aiOverlay.classList.add('show');
+        aiMessages.innerHTML = '';
+        addMessage('👋 你好！我是空域AI助手，可以帮你查询适飞空域、热门航线、常见问题及政策法规。', 'bot');
+        if (initialQuery) {
+            setTimeout(() => { handleUserQuery(initialQuery); }, 500);
+        }
+    }
+
+    function closeDrawer() {
+        aiDrawer.classList.remove('open');
+        aiOverlay.classList.remove('show');
+    }
+
+    globalAiBtn.addEventListener('click', function() {
+        if (aiDrawer.classList.contains('open')) {
+            closeDrawer();
+        } else {
+            openDrawer(null);
+        }
+    });
+
+    aiLegendBtn.addEventListener('click', function() {
+        if (aiDrawer.classList.contains('open')) {
+            closeDrawer();
+        } else {
+            openDrawer(null);
+        }
+    });
+
+    aiCloseBtn.addEventListener('click', closeDrawer);
+    aiOverlay.addEventListener('click', closeDrawer);
+
+    aiSendBtn.addEventListener('click', function() {
+        const query = aiInput.value.trim();
+        if (query) handleUserQuery(query);
+    });
+
+    aiInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const query = this.value.trim();
+            if (query) handleUserQuery(query);
+        }
+    });
+
+    suggestionBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const query = this.dataset.query;
+            if (query) {
+                aiInput.value = query;
+                handleUserQuery(query);
+            }
+        });
+    });
+
+    // ============================================================
+    // 预约提交
+    // ============================================================
+    function submitBooking() {
+        const result = document.getElementById('bookingResult');
+        result.classList.add('show');
+        result.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const drone = document.getElementById('droneSelect');
+        const selectedDrone = drone.options[drone.selectedIndex]?.text || '未选择';
+        console.log('选中的飞行设备:', selectedDrone);
+    }
+
+    // ============================================================
+    // 其他用途
+    // ============================================================
+    document.getElementById('purposeOther').addEventListener('change', function() {
+        if (this.checked) document.getElementById('otherAlert').style.display = 'block';
+    });
+    document.querySelector('input[name="purpose"][value="entertain"]').addEventListener('change', function() {
+        if (this.checked) document.getElementById('otherAlert').style.display = 'none';
+    });
+
+    // ============================================================
+    // 时间槽点击
+    // ============================================================
+    document.querySelectorAll('.time-slot:not(.full)').forEach(el => {
+        el.addEventListener('click', function() {
+            if (this.classList.contains('selected')) { this.classList.remove('selected'); return; }
+            const selected = document.querySelectorAll('.time-slot.selected');
+            if (selected.length >= 2) { alert('最多连续选择2个时段'); return; }
+            this.classList.add('selected');
+        });
+    });
+
+    // ============================================================
+    // 登录 / 退出逻辑
+    // ============================================================
+    const loginCardWrap = document.getElementById('loginCardWrap');
+    const loggedInContent = document.getElementById('loggedInContent');
+    const loginStatusBadge = document.getElementById('loginStatusBadge');
+    const userStatusTag = document.getElementById('userStatusTag');
+    const droneList = document.getElementById('droneList');
+    const droneCount = document.getElementById('droneCount');
+    const scanBtn = document.getElementById('scanUomBtn');
+    const manualAddBtn = document.getElementById('manualAddDroneBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
+
+    // 菜单点击事件
+    document.getElementById('bookingHistoryBtn')?.addEventListener('click', function() {
+        alert('📋 预约记录页面（模拟）');
+    });
+    document.getElementById('flightTrackBtn')?.addEventListener('click', function() {
+        alert('🗺️ 飞行足迹页面（模拟）');
+    });
+    document.getElementById('creditArchiveBtn')?.addEventListener('click', function() {
+        alert('📋 信用分档案页面（模拟）');
+    });
+
+    let isLoggedIn = false;
+    let isUomBound = false;
+
+    function showModal2(titleHtml, bodyHtml) {
+        modalTitle.innerHTML = titleHtml;
+        modalBody.innerHTML = bodyHtml;
+        modalOverlay.classList.add('show');
+    }
+
+    function hideModal2() {
+        modalOverlay.classList.remove('show');
+    }
+
+    document.getElementById('zheliLoginBtn').addEventListener('click', function() {
+        showModal2(
+            '<i class="fas fa-id-card"></i> 浙里办登录',
+            `<div style="text-align:center;padding:12px 0;">
+                <i class="fas fa-spinner fa-spin" style="font-size:40px;color:#1a5cff;"></i>
+                <p style="margin-top:12px;font-size:14px;color:#334155;">正在跳转浙里办授权...</p>
+                <p style="font-size:12px;color:#94a3b8;">模拟登录，实际将拉起浙里办App</p>
+                <button class="btn-primary" style="margin-top:16px;" onclick="simulateZheliLogin()">模拟授权成功</button>
+            </div>`
+        );
+    });
+
+    function simulateZheliLogin() {
+        hideModal2();
+        isLoggedIn = true;
+        loginCardWrap.classList.add('hidden');
+        loggedInContent.classList.add('show');
+        loginStatusBadge.innerHTML = '<i class="fas fa-check-circle"></i> 已登录';
+        loginStatusBadge.className = 'badge tag green';
+        userStatusTag.textContent = '已认证';
+        userStatusTag.className = 'tag green';
+        droneList.innerHTML = `
+            <div style="text-align:center;padding:12px 0;color:#94a3b8;font-size:13px;">
+                <i class="fas fa-qrcode"></i> 请点击“扫码绑定”获取UOM数据
+            </div>
+        `;
+        droneCount.textContent = '0架';
+        alert('✅ 浙里办登录成功！请扫码绑定无人机。');
+    }
+
+    scanBtn.addEventListener('click', function() {
+        if (!isLoggedIn) {
+            alert('请先完成浙里办登录');
+            return;
+        }
+        showModal2(
+            '<i class="fas fa-qrcode"></i> 扫码获取UOM数据',
+            `<div style="text-align:center;padding:8px 0;">
+                <div style="background:#eef2f6;border-radius:12px;padding:24px;margin-bottom:12px;">
+                    <i class="fas fa-camera" style="font-size:48px;color:#1a5cff;"></i>
+                    <p style="font-size:13px;color:#475569;">扫描无人机机身二维码</p>
+                </div>
+                <div style="background:#f8fafc;border-radius:8px;padding:12px;text-align:left;font-size:13px;">
+                    <div><strong>✅ 已获取UOM数据</strong></div>
+                    <div>无人机：DJI Mavic 3 (SN: MAV3-2026-001)</div>
+                    <div>飞手：张明 (UAV-2025-088)</div>
+                    <div>保险：平安无人机险 (有效期至2026-12-31)</div>
+                    <div style="margin-top:6px;color:#10b981;"><i class="fas fa-check-circle"></i> 实名、实机认证通过</div>
+                </div>
+                <button class="btn-primary" style="margin-top:12px;" onclick="onUomConfirmed()">确认绑定</button>
+            </div>`
+        );
+    });
+
+    function onUomConfirmed() {
+        hideModal2();
+        showDisclaimerAfterScan();
+    }
+
+    function showDisclaimerAfterScan() {
+        let seconds = 10;
+        const content = `
+            <div class="disclaimer-text">
+                <strong>低空飞行免责声明</strong><br/>
+                1. 用户须遵守《无人驾驶航空器飞行管理暂行条例》及相关法规；<br/>
+                2. 飞行前应确认空域状态、气象条件及设备适航性；<br/>
+                3. 因用户违规操作或不可抗力导致的事故，由用户自行承担；<br/>
+                4. 平台仅提供空域预约与信息服务，不对飞行安全承担直接责任；<br/>
+                5. 用户须确保已购买足额第三方责任险。
+            </div>
+            <div class="timer">⏱️ 请仔细阅读（剩余 <span id="disclaimerTimer">10</span> 秒）</div>
+            <button class="btn-confirm" id="disclaimerConfirmBtn" disabled>确认（10s）</button>
+        `;
+        showModal2('<i class="fas fa-file-contract"></i> 免责声明', content);
+
+        const timerSpan = document.getElementById('disclaimerTimer');
+        const confirmBtn = document.getElementById('disclaimerConfirmBtn');
+        const interval = setInterval(() => {
+            seconds--;
+            if (timerSpan) timerSpan.textContent = seconds;
+            if (confirmBtn) confirmBtn.textContent = `确认（${seconds}s）`;
+            if (seconds <= 0) {
+                clearInterval(interval);
+                if (confirmBtn) {
+                    confirmBtn.disabled = false;
+                    confirmBtn.textContent = '确认';
+                    confirmBtn.style.background = '#1a5cff';
+                }
+            }
+        }, 1000);
+
+        confirmBtn?.addEventListener('click', function() {
+            if (!this.disabled) {
+                hideModal2();
+                finishUomBind();
+            }
+        });
+    }
+
+    function finishUomBind() {
+        isUomBound = true;
+        droneList.innerHTML = `
+            <div class="drone-info-item">
+                <div class="detail">
+                    <div><strong>DJI Mavic 3</strong></div>
+                    <div class="label">SN: MAV3-2026-001</div>
+                    <div class="label">飞手证：UAV-2025-088</div>
+                    <div class="label">保险：平安无人机险 (有效期至2026-12-31)</div>
+                </div>
+                <span class="tag green">已认证</span>
+            </div>
+        `;
+        droneCount.textContent = '1架';
+        alert('✅ 无人机绑定成功！');
+    }
+
+    manualAddBtn.addEventListener('click', function() {
+        if (!isLoggedIn) {
+            alert('请先完成浙里办登录');
+            return;
+        }
+        showModal2(
+            '<i class="fas fa-pen"></i> 手动录入无人机',
+            `<div style="padding:4px 0;">
+                <div style="margin-bottom:10px;">
+                    <label style="font-size:13px;font-weight:500;">无人机型号</label>
+                    <input class="form-control" placeholder="如 DJI Mavic 3" value="DJI Air 2S" style="margin-top:4px;">
+                </div>
+                <div style="margin-bottom:10px;">
+                    <label style="font-size:13px;font-weight:500;">序列号 (SN)</label>
+                    <input class="form-control" placeholder="输入SN" value="AIR2S-2026-099" style="margin-top:4px;">
+                </div>
+                <div style="margin-bottom:10px;">
+                    <label style="font-size:13px;font-weight:500;">飞手证号</label>
+                    <input class="form-control" placeholder="输入飞手证" value="UAV-2026-123" style="margin-top:4px;">
+                </div>
+                <button class="btn-primary" onclick="hideModal2();alert('✅ 已手动添加无人机信息。');">保存</button>
+            </div>`
+        );
+    });
+
+    logoutBtn.addEventListener('click', function() {
+        if (confirm('确认退出登录吗？')) {
+            isLoggedIn = false;
+            isUomBound = false;
+            loginCardWrap.classList.remove('hidden');
+            loggedInContent.classList.remove('show');
+            loginStatusBadge.innerHTML = '<i class="fas fa-times-circle"></i> 未登录';
+            loginStatusBadge.className = 'badge tag gray';
+            userStatusTag.textContent = '未认证';
+            userStatusTag.className = 'tag gray';
+            droneList.innerHTML = `
+                <div style="text-align:center;padding:16px 0;color:#94a3b8;font-size:13px;">
+                    <i class="fas fa-plus-circle"></i> 请先登录并扫码绑定无人机
+                </div>
+            `;
+            droneCount.textContent = '0架';
+            alert('✅ 已退出登录');
+        }
+    });
+
+    // ============================================================
+    // 位置权限模拟
+    // ============================================================
+    let locationRequested = false;
+    const panelAirspaceObserve = document.getElementById('panelAirspace');
+    const observer = new MutationObserver(() => {
+        if (panelAirspaceObserve.classList.contains('active') && !locationRequested) {
+            locationRequested = true;
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => { console.log('位置获取成功', pos.coords); },
+                    (err) => { console.warn('位置获取失败', err.message); },
+                    { enableHighAccuracy: true, timeout: 5000 }
+                );
+            }
+            showModal2(
+                '<i class="fas fa-location-dot"></i> 获取位置权限',
+                `<div style="text-align:center;padding:12px 0;">
+                    <p style="font-size:14px;color:#334155;">为提供更精准的空域信息，需要获取您的位置。</p>
+                    <p style="font-size:12px;color:#94a3b8;margin-top:8px;">点击下方按钮模拟授权</p>
+                    <button class="btn-primary" style="margin-top:16px;" onclick="hideModal2();">允许</button>
+                    <button class="btn-outline" style="margin-top:8px;width:100%;" onclick="hideModal2();">拒绝</button>
+                </div>`
+            );
+        }
+    });
+    observer.observe(panelAirspaceObserve, { attributes: true, attributeFilter: ['class'] });
+
+    // ============================================================
+    // 窗口尺寸变化重绘轨迹
+    // ============================================================
+    let resizeTimer;
+    window.addEventListener('resize', function() {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+            if (panels.panelService.classList.contains('active')) {
+                drawFlightTrack();
+            }
+        }, 200);
+    });
+
+    // ============================================================
+    // 初始化
+    // ============================================================
+    window.addEventListener('load', function() {
+        loginCardWrap.classList.remove('hidden');
+        loggedInContent.classList.remove('show');
+        searchBox.style.display = 'none';
+        navItems.forEach(n => n.classList.remove('active'));
+        document.querySelector('.bottom-nav .nav-item[data-panel="panelMine"]')?.classList.add('active');
+        renderSelectedRoute();
+        updateDistricts();
+    });
+
+    console.log('✅ 飞行服务页面顺序已调整：实时气象 → 飞行地图 → 当前飞行状态 → 告警中心。');
+</script>
+</body>
+</html>
